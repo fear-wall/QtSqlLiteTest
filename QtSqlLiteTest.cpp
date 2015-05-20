@@ -6,12 +6,14 @@
 #include <QVBoxLayout>
 #include <QTextCodec>
 #include <QSqlTableModel>
+#include <QDir>
 
 QtSqlLiteTest::QtSqlLiteTest(QWidget *parent)
     : QWidget(parent)
 {
     // 打开数据库
-    if(createDB("/debug", "myDB.db"))
+    QString path = QDir::currentPath() + "/debug";
+    if(createDB(path, "myDB.db"))
     {
         const QString createTablaSql = "create table if not exists logevent (id INTEGER PRIMARY KEY autoincrement, event varchar, msg varchar, volume int)";
         sqlQuery(createTablaSql);
@@ -39,7 +41,9 @@ QtSqlLiteTest::QtSqlLiteTest(QWidget *parent)
     m_model = new QSqlTableModel(this);
     m_model->setTable("logevent");
     m_model->setEditStrategy(QSqlTableModel::OnManualSubmit);
+//    m_model->setFilter("event='测试中文'");
     m_model->select();
+//    m_model->removeColumn(0);
     m_tableView->setModel(m_model);
     m_tableView->setEditTriggers(QAbstractItemView::NoEditTriggers);
 
@@ -80,7 +84,7 @@ QtSqlLiteTest::~QtSqlLiteTest()
 bool QtSqlLiteTest::createDB(const QString dbFilePath, const QString dbFileName)
 {
     m_db = QSqlDatabase::addDatabase("QSQLITE");
-    m_db.setDatabaseName(dbFileName);
+    m_db.setDatabaseName(dbFilePath + "/" + dbFileName);
 
     bool openRet = m_db.open();
     qDebug() << ((openRet) ? (dbFileName + " open sucees") : (dbFileName + " open fail, " + m_db.lastError().driverText()));
