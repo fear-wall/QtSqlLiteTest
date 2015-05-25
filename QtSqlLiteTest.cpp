@@ -7,6 +7,8 @@
 #include <QTextCodec>
 #include <QSqlTableModel>
 #include <QDateTime>
+#include <QHeaderView>
+#include <QMenu>
 
 QtSqlLiteTest::QtSqlLiteTest(QWidget *parent)
     : QWidget(parent)
@@ -26,6 +28,7 @@ QtSqlLiteTest::QtSqlLiteTest(QWidget *parent)
 
     // 槽连接
     connect(m_addDataBtn, &QPushButton::clicked, this, &QtSqlLiteTest::addData);
+    connect(m_tableView, &QTableView::customContextMenuRequested, this, &QtSqlLiteTest::showContextmenu);
 }
 
 /**
@@ -36,9 +39,9 @@ QtSqlLiteTest::QtSqlLiteTest(QWidget *parent)
 */
 void QtSqlLiteTest::initWidget()
 {
-    m_addDataBtn = new QPushButton("addData", this);
-    m_songNameLe = new QLineEdit("song name", this);
-    m_singerLe = new QLineEdit("singer", this);
+    m_addDataBtn = new QPushButton("插入", this);
+    m_songNameLe = new QLineEdit("input song name", this);
+    m_singerLe = new QLineEdit("input singer", this);
 
     QVBoxLayout *mainLayOut = new QVBoxLayout(this);
 
@@ -72,6 +75,8 @@ void QtSqlLiteTest::initModel()
     m_tableView->setContextMenuPolicy(Qt::CustomContextMenu);
     m_tableView->setSelectionMode(QAbstractItemView::SingleSelection);
     m_tableView->hideColumn(0);
+    m_tableView->verticalHeader()->hide();  // 左边自动生成的列序号不显示
+
 }
 
 /**
@@ -85,22 +90,30 @@ void QtSqlLiteTest::addData()
     QString songName = m_songNameLe->text();
     QString singer = m_singerLe->text();
     QString date = QDateTime::currentDateTime().toString("yyyy/M/d hh:mm:ss");
-//    QString addDataSql = "INSERT INTO logevent VALUES(NULL, '" + event + "', '" + msg + "', " + volume + ")";
-//    sqlQuery(addDataSql);
+#if 0
+    // 如果仅仅插入到数据库，使用此方式
+    QString addDataSql = QString("INSERT INTO %1 VALUES(NULL, '%2', '%3', '%4')")
+                .arg(m_dbTable).arg(songName).arg(singer).arg(date);
+    sqlQuery(addDataSql);
+#else
+    // 使用MVC模式，插入数据会自动更新列表
+    int rowNum = m_model->rowCount();   //获得表的行数
+    int colunmIndex = 1;                // 由于隐藏了一列，所以索引从1开始
+    m_model->insertRow(rowNum);         //添加一行
+    m_model->setData(m_model->index(rowNum, colunmIndex++), songName);
+    m_model->setData(m_model->index(rowNum, colunmIndex++), singer);
+    m_model->setData(m_model->index(rowNum, colunmIndex++), date);
 
-    int rowNum = m_model->rowCount();//获得表的行数
-    m_model->insertRow(rowNum); //添加一行
-    m_model->setData(m_model->index(rowNum, 1), songName);
-    m_model->setData(m_model->index(rowNum, 2), singer);
-    m_model->setData(m_model->index(rowNum, 3), date);
-
-    m_model->database().transaction(); //开始事务操作
-    if (m_model->submitAll()) // 提交所有被修改的数据到数据库中
+    m_model->database().transaction();  // 开始事务操作
+    if (m_model->submitAll())           // 提交所有被修改的数据到数据库中
     {
-        m_model->database().commit(); //提交成功，事务将真正修改数据库数据
-    } else {
-        m_model->database().rollback(); //提交失败，事务回滚
+        m_model->database().commit();   // 提交成功，事务将真正修改数据库数据
     }
+    else
+    {
+        m_model->database().rollback(); // 提交失败，事务回滚
+    }
+#endif
 }
 
 QtSqlLiteTest::~QtSqlLiteTest()
@@ -136,6 +149,42 @@ bool QtSqlLiteTest::createDB(const QString dbFilePath, const QString dbFileName)
 
     return openRet;
 }
+
+/**
+* @brief 右键执行菜单操作
+* @author LuChenQun
+* @date 2015/05/22
+* @param[in] point 右键的位置
+* @return void
+*/
+void QtSqlLiteTest::showContextmenu(const QPoint& point)
+{
+    QMenu *menu = new QMenu(m_tableView);
+    menu->addAction(("删除"), this, SLOT(delData()));
+    menu->exec(QCursor::pos());
+}
+
+/**
+* @brief 将选中表格的数据复制到搜索框里面，同时自动关联过滤选项
+* @author LuChenQun
+* @date 2015/05/22
+* @return void
+*/
+void QtSqlLiteTest::delData()
+{
+    int row = m_tableView->currentIndex().row();
+    m_model->removeRow(row);
+    m_model->database().transaction();  //开始事务操作
+    if (m_model->submitAll())           // 提交所有被修改的数据到数据库中
+    {
+        m_model->database().commit();   //提交成功，事务将真正修改数据库数据
+    }
+    else
+    {
+        m_model->database().rollback(); //提交失败，事务回滚
+    }
+}
+
 
 /**
 * @brief 执行sql语句

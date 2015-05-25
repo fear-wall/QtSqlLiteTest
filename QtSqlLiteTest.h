@@ -25,6 +25,8 @@ private:
     void initModel();
 private slots:
     void addData();
+    void showContextmenu(const QPoint& point);
+    void delData();
 private:
     QSqlDatabase m_db;
     QPushButton* m_addDataBtn;
