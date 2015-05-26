@@ -20,13 +20,16 @@ public:
 
     bool createDB(const QString dbPath, const QString dbName);
     bool sqlQuery(const QString sql);
+    QVariant getRecordValue(int rowIndex, QString columnName);
 private:
     void initWidget();
     void initModel();
+    bool updateData();
 private slots:
     void addData();
     void showContextmenu(const QPoint& point);
     void delData();
+    void alterData();
 private:
     QSqlDatabase m_db;
     QPushButton* m_addDataBtn;

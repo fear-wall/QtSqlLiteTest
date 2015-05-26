@@ -9,6 +9,8 @@
 #include <QDateTime>
 #include <QHeaderView>
 #include <QMenu>
+#include <QSqlRecord>
+#include <QSqlIndex>
 
 QtSqlLiteTest::QtSqlLiteTest(QWidget *parent)
     : QWidget(parent)
@@ -29,6 +31,47 @@ QtSqlLiteTest::QtSqlLiteTest(QWidget *parent)
     // 槽连接
     connect(m_addDataBtn, &QPushButton::clicked, this, &QtSqlLiteTest::addData);
     connect(m_tableView, &QTableView::customContextMenuRequested, this, &QtSqlLiteTest::showContextmenu);
+    // 删除一行之前发出的信号
+    connect(m_model, &QSqlTableModel::beforeDelete, this, [](int row){
+        qDebug() << "delete data in database for row = " << row;
+    });
+    // 插入一行之前发出的信号
+    connect(m_model, &QSqlTableModel::beforeInsert, this, [](QSqlRecord &record){
+        qDebug() << "insert data in database for row = " << record;
+    });
+    connect(m_tableView->selectionModel(), &QItemSelectionModel::currentChanged,
+            this, [=](const QModelIndex &cur, const QModelIndex &prv){
+
+        qDebug() << "cur:(" << cur.row() << "," << cur.column() << ")";
+        qDebug() << "prv:(" << prv.row() << "," << prv.column() << ")";
+
+        QModelIndex curIndex = m_tableView->model()->index(cur.row(), cur.column());
+        QModelIndex prvIndex = m_tableView->model()->index(prv.row(), prv.column());
+        qDebug() << "tableView currentColumnChanged change, prv = "
+                 << prvIndex.data().toString() << ", cur = " << curIndex.data().toString();
+
+
+        if(prv.row() != -1 && prv.column() != -1)
+        {
+            QVariant data =  prvIndex.data();
+//            m_model->setData(m_model->index(prv.row(), prv.column()), m_tableView->model()->index(prv.row(), prv.column()));
+            m_model->setData(m_model->index(prv.row(),prv.column()), data);
+            qDebug() << "updateData ret = " << updateData();
+        }
+    });
+
+    qDebug() << getRecordValue(3, m_headTableList.at(2)).toString();// 获取列名为 singer ，行号索引为3的数据库里面的数据
+    qDebug() << m_model->fieldIndex(m_headTableList.at(3));         // 获取表名为 xxx 所在数据库表的索引
+}
+
+/**
+* @brief 析构函数
+* @author LuChenQun
+* @date 2015-5-26 16:24:31
+*/
+QtSqlLiteTest::~QtSqlLiteTest()
+{
+    m_db.close();
 }
 
 /**
@@ -70,8 +113,27 @@ void QtSqlLiteTest::initModel()
     m_model->setTable(m_dbTable);
     m_model->setEditStrategy(QSqlTableModel::OnManualSubmit);
     m_model->select();
+
+    // 没有数据，插入几条做测试
+    int rowNum = m_model->rowCount();
+    if(0 == rowNum)
+    {
+        for(int i=1; i<=5; i++)
+        {
+            sqlQuery(QString("INSERT INTO %1 VALUES(NULL, '歌名%2', '歌手%3', '%4')")
+                    .arg(m_dbTable).arg(i).arg(i).arg("2015/5/26 15:07:12"));
+        }
+        m_model->select();
+    }
+
+    // 设置头说明
+    int columnIndex = 0;
+    foreach (QString head, m_headInfoList) {
+        m_model->setHeaderData(columnIndex++, Qt::Horizontal, head);
+    }
+
     m_tableView->setModel(m_model);
-    m_tableView->setEditTriggers(QAbstractItemView::NoEditTriggers);
+    m_tableView->setEditTriggers(QAbstractItemView::DoubleClicked);
     m_tableView->setContextMenuPolicy(Qt::CustomContextMenu);
     m_tableView->setSelectionMode(QAbstractItemView::SingleSelection);
     m_tableView->hideColumn(0);
@@ -97,30 +159,16 @@ void QtSqlLiteTest::addData()
     sqlQuery(addDataSql);
 #else
     // 使用MVC模式，插入数据会自动更新列表
-    int rowNum = m_model->rowCount();   //获得表的行数
+    int rowNum = m_model->rowCount();   // 获得表的行数
     int colunmIndex = 1;                // 由于隐藏了一列，所以索引从1开始
-    m_model->insertRow(rowNum);         //添加一行
+    m_model->insertRow(rowNum);         // 添加一行
     m_model->setData(m_model->index(rowNum, colunmIndex++), songName);
     m_model->setData(m_model->index(rowNum, colunmIndex++), singer);
     m_model->setData(m_model->index(rowNum, colunmIndex++), date);
 
-    m_model->database().transaction();  // 开始事务操作
-    if (m_model->submitAll())           // 提交所有被修改的数据到数据库中
-    {
-        m_model->database().commit();   // 提交成功，事务将真正修改数据库数据
-    }
-    else
-    {
-        m_model->database().rollback(); // 提交失败，事务回滚
-    }
+    qDebug() << "updateData ret = " << updateData();
 #endif
 }
-
-QtSqlLiteTest::~QtSqlLiteTest()
-{
-    m_db.close();
-}
-
 
 /**
 * @brief 创建数据库
@@ -174,15 +222,49 @@ void QtSqlLiteTest::delData()
 {
     int row = m_tableView->currentIndex().row();
     m_model->removeRow(row);
+    updateData();
+}
+
+/**
+* @brief 修改数据
+* @author LuChenQun
+* @date 2015-5-26 16:27:02
+* @param[in] parameter‐name parameter description
+* @return description of the return value
+*/
+void QtSqlLiteTest::alterData()
+{
+    int row = m_tableView->currentIndex().row();
+    int column = m_tableView->currentIndex().column();
+    if (row >= 0 && column >= 0)
+    {
+        m_model->setData(m_model->index(row, column), m_model->data(m_model->index(row, column)));
+        updateData();
+    }
+}
+
+/**
+* @brief 将修改的数据更新到数据库
+* @author LuChenQun
+* @date 2015-5-26 09:26:37
+* @return bool true 更新数据成功 false 更新数目失败
+*/
+bool QtSqlLiteTest::updateData()
+{
+    bool commitState = false;
     m_model->database().transaction();  //开始事务操作
     if (m_model->submitAll())           // 提交所有被修改的数据到数据库中
     {
-        m_model->database().commit();   //提交成功，事务将真正修改数据库数据
+        commitState = m_model->database().commit();   //提交成功，事务将真正修改数据库数据
     }
     else
     {
         m_model->database().rollback(); //提交失败，事务回滚
     }
+
+    if(!commitState) {qDebug() << m_model->lastError().text();};
+
+    return commitState;
 }
 
 
@@ -202,4 +284,19 @@ bool QtSqlLiteTest::sqlQuery(const QString sql)
         qDebug() << (sql + " query fail");
     }
     return queryRet;
+}
+
+/**
+* @brief 获取数据库某一列的数据
+* @author LuChenQun
+* @date 2015-5-26 14:54:29
+* @param[in] columnIndex 行索引
+* @param[in] columnName 列名字
+* @return QVariant 数据
+*/
+QVariant QtSqlLiteTest::getRecordValue(int rowIndex, QString columnName)
+{
+    QSqlQueryModel model;
+    model.setQuery(QString("SELECT * FROM %1").arg(m_dbTable));
+    return model.record(rowIndex).value(columnName);
 }
