@@ -14,6 +14,8 @@ TEMPLATE = app
 
 
 SOURCES += main.cpp\
-        QtSqlLiteTest.cpp
+        QtSqlLiteTest.cpp \
+    EditAbleSqlModel.cpp
 
-HEADERS  += QtSqlLiteTest.h
+HEADERS  += QtSqlLiteTest.h \
+    EditAbleSqlModel.h

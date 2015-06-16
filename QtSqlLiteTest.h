@@ -10,6 +10,10 @@
 #include <QDir>
 #include <QString>
 
+#include "EditAbleSqlModel.h"
+
+#define EDIT_ABLE_SQLMODEL  0
+
 class QtSqlLiteTest : public QWidget
 {
     Q_OBJECT
@@ -37,8 +41,11 @@ private:
     QLineEdit *m_singerLe;
 
     QTableView *m_tableView;
+#if EDIT_ABLE_SQLMODEL
+    EditAbleSqlModel *m_model;
+#else
     QSqlTableModel *m_model;
-
+#endif
     const QString m_dbPath = QDir::currentPath();
     const QString m_dbName = "myDB.db";
     const QString m_dbTable = "song_info";

@@ -31,14 +31,14 @@ QtSqlLiteTest::QtSqlLiteTest(QWidget *parent)
     // 槽连接
     connect(m_addDataBtn, &QPushButton::clicked, this, &QtSqlLiteTest::addData);
     connect(m_tableView, &QTableView::customContextMenuRequested, this, &QtSqlLiteTest::showContextmenu);
-    // 删除一行之前发出的信号
-    connect(m_model, &QSqlTableModel::beforeDelete, this, [](int row){
-        qDebug() << "delete data in database for row = " << row;
-    });
-    // 插入一行之前发出的信号
-    connect(m_model, &QSqlTableModel::beforeInsert, this, [](QSqlRecord &record){
-        qDebug() << "insert data in database for row = " << record;
-    });
+//    // 删除一行之前发出的信号
+//    connect(m_model, &QSqlTableModel::beforeDelete, this, [](int row){
+//        qDebug() << "delete data in database for row = " << row;
+//    });
+//    // 插入一行之前发出的信号
+//    connect(m_model, &QSqlTableModel::beforeInsert, this, [](QSqlRecord &record){
+//        qDebug() << "insert data in database for row = " << record;
+//    });
     connect(m_tableView->selectionModel(), &QItemSelectionModel::currentChanged,
             this, [=](const QModelIndex &cur, const QModelIndex &prv){
 
@@ -109,7 +109,11 @@ void QtSqlLiteTest::initWidget()
 */
 void QtSqlLiteTest::initModel()
 {
+#if EDIT_ABLE_SQLMODEL
+    m_model = new EditAbleSqlModel(this);
+#else
     m_model = new QSqlTableModel(this);
+#endif
     m_model->setTable(m_dbTable);
     m_model->setEditStrategy(QSqlTableModel::OnManualSubmit);
     m_model->select();
