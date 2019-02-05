@@ -26,5 +26,7 @@ Qt::ItemFlags EditAbleSqlModel::flags(const QModelIndex &index) const
 
 bool EditAbleSqlModel::setData(const QModelIndex &index, const QVariant &value, int role)
 {
+    Q_UNUSED(role)
+
     return this->setData(index, value);
 }

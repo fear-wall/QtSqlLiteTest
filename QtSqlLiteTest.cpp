@@ -30,6 +30,7 @@ QtSqlLiteTest::QtSqlLiteTest(QWidget *parent)
 
     // 槽连接
     connect(m_addDataBtn, &QPushButton::clicked, this, &QtSqlLiteTest::addData);
+    connect(m_delDataBtn, &QPushButton::clicked, this, &QtSqlLiteTest::delData);
     connect(m_tableView, &QTableView::customContextMenuRequested, this, &QtSqlLiteTest::showContextmenu);
 //    // 删除一行之前发出的信号
 //    connect(m_model, &QSqlTableModel::beforeDelete, this, [](int row){
@@ -83,6 +84,7 @@ QtSqlLiteTest::~QtSqlLiteTest()
 void QtSqlLiteTest::initWidget()
 {
     m_addDataBtn = new QPushButton("插入", this);
+    m_delDataBtn = new QPushButton("删除",this);
     m_songNameLe = new QLineEdit("input song name", this);
     m_singerLe = new QLineEdit("input singer", this);
 
@@ -92,7 +94,7 @@ void QtSqlLiteTest::initWidget()
     layWidget->addWidget(m_songNameLe);
     layWidget->addWidget(m_singerLe);
     layWidget->addWidget(m_addDataBtn);
-    layWidget->addWidget(m_addDataBtn);
+    layWidget->addWidget(m_delDataBtn);
 
     m_tableView = new QTableView(this);
 

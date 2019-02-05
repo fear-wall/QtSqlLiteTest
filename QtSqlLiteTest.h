@@ -37,6 +37,7 @@ private slots:
 private:
     QSqlDatabase m_db;
     QPushButton* m_addDataBtn;
+    QPushButton *m_delDataBtn;
     QLineEdit *m_songNameLe;
     QLineEdit *m_singerLe;
 
